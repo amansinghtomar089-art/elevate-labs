@@ -1,0 +1,108 @@
+import pandas as pd
+import numpy as np
+
+def clean_netflix_data(input_file):
+    print("Loading dataset...")
+    try:
+        # 1. Load Data
+        df = pd.read_csv(input_file)
+        
+        # Save Raw Data as Excel (Requirement 1)
+        print("Saving Raw_Data.xlsx...")
+        df.to_excel("Raw_Data.xlsx", index=False)
+
+        # --- DATA CLEANING PIPELINE ---
+        print("Starting cleaning process...")
+        
+        # Initialize Data_Quality_Notes column
+        df['Data_Quality_Notes'] = ""
+
+        # 2. Handling Duplicates (Mini Guide Hint #4)
+        # Check for duplicates based on show_id
+        initial_count = len(df)
+        df.drop_duplicates(subset=['show_id'], inplace=True)
+        if len(df) < initial_count:
+            print(f"Removed {initial_count - len(df)} duplicate rows.")
+
+        # 3. Standardize Text Fields (Mini Guide Hint #5)
+        # Simulating TRIM and PROPER functions
+        text_cols = ['type', 'title', 'director', 'cast', 'country', 'rating', 'listed_in']
+        for col in text_cols:
+            if col in df.columns:
+                # Remove extra spaces and strip
+                df[col] = df[col].astype(str).str.strip()
+                
+                # record changes if needed, but mainly we want to clean
+                # We replace 'nan' string back to actual NaN for processing
+                df[col] = df[col].replace('nan', np.nan)
+
+        # 4. Handle Missing Values & Create Notes (Mini Guide Hint #3 & #8)
+        
+        def add_note(row, note):
+            if pd.isna(row['Data_Quality_Notes']) or row['Data_Quality_Notes'] == "":
+                return note
+            else:
+                return row['Data_Quality_Notes'] + "; " + note
+
+        # Director: Fill with "Unknown" and add note
+        missing_director = df['director'].isna()
+        df.loc[missing_director, 'Data_Quality_Notes'] = df.loc[missing_director].apply(
+            lambda x: add_note(x, "Missing Director imputed"), axis=1
+        )
+        df['director'] = df['director'].fillna("Unknown")
+
+        # Cast: Fill with "Unknown" and add note
+        missing_cast = df['cast'].isna()
+        df.loc[missing_cast, 'Data_Quality_Notes'] = df.loc[missing_cast].apply(
+            lambda x: add_note(x, "Missing Cast imputed"), axis=1
+        )
+        df['cast'] = df['cast'].fillna("Unknown")
+
+        # Country: Fill with "Unknown" and add note
+        missing_country = df['country'].isna()
+        df.loc[missing_country, 'Data_Quality_Notes'] = df.loc[missing_country].apply(
+            lambda x: add_note(x, "Missing Country imputed"), axis=1
+        )
+        df['country'] = df['country'].fillna("Unknown")
+
+        # Date Added: Drop rows where date is missing (usually very few) or fill
+        # For this task, let's fill to keep data, but mark it.
+        missing_date = df['date_added'].isna()
+        df.loc[missing_date, 'Data_Quality_Notes'] = df.loc[missing_date].apply(
+            lambda x: add_note(x, "Missing Date_Added"), axis=1
+        )
+        # formatting date (Mini Guide Hint #6)
+        # We attempt to convert to datetime, errors become NaT
+        df['date_added_clean'] = pd.to_datetime(df['date_added'], errors='coerce')
+        
+        # If conversion failed for some non-null values, note it
+        date_errors = df['date_added'].notna() & df['date_added_clean'].isna()
+        if date_errors.any():
+             df.loc[date_errors, 'Data_Quality_Notes'] = df.loc[date_errors].apply(
+                lambda x: add_note(x, "Invalid Date Format"), axis=1
+            )
+
+        # 5. Final Formatting
+        # We will use the cleaned date column if you want, or just keep the original standardized
+        # Let's keep the original textual date for Excel compatibility unless specified otherwise,
+        # but the task asks to validate format. We created 'date_added_clean' for validation.
+        
+        # 6. Export (Mini Guide Hint #7 & #9)
+        print("Exporting Cleaned_dataset.xlsx...")
+        df.to_excel("Cleaned_dataset.xlsx", index=False, sheet_name="Cleaned_Data")
+        
+        print("Exporting cleaned_dataset.csv...")
+        df.to_csv("cleaned_dataset.csv", index=False)
+        
+        print("\nSUCCESS! All files created:")
+        print("1. Raw_Data.xlsx")
+        print("2. Cleaned_dataset.xlsx")
+        print("3. cleaned_dataset.csv")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+# Run the function
+if __name__ == "__main__":
+    # Ensure the filename matches exactly what you have
+    clean_netflix_data('netflix_titles.csv')

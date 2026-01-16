@@ -1,0 +1,78 @@
+import pandas as pd
+
+# Install xlsxwriter if not already installed
+try:
+    import xlsxwriter
+except ImportError:
+    !pip install xlsxwriter
+
+# 1. Load the Dataset
+# Note: Using 'ISO-8859-1' encoding because Superstore often has special characters for CSVs.
+try:
+    df = pd.read_csv('Superstore.xlsx - Orders.csv', encoding='ISO-8859-1')
+except FileNotFoundError:
+    try:
+        df = pd.read_csv('Superstore.csv', encoding='ISO-8859-1')
+    except FileNotFoundError:
+        try:
+            # If CSVs not found, try reading the .xlsx file
+            df = pd.read_excel('Superstore.xlsx')
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                "Neither 'Superstore.xlsx - Orders.csv', 'Superstore.csv' nor 'Superstore.xlsx' was found. "
+                "Please ensure the Superstore dataset (CSV or XLSX) file is uploaded to your Colab environment."
+            )
+
+# 2. Create the 'Profit Margin' Column
+# Formula: Profit / Sales
+df['Profit Margin'] = df['Profit'] / df['Sales']
+
+# ---------------------------------------------------------
+# PHASE 2: Creating the "Pivot Tables"
+# ---------------------------------------------------------
+
+# Table 1: Sales by Category (Sorted Highest to Lowest)
+pivot1 = df.groupby('Category')['Sales'].sum().reset_index()
+pivot1 = pivot1.sort_values(by='Sales', ascending=False)
+
+# Table 2: Sales by Region & Segment
+# We use pivot_table to get that matrix style
+pivot2 = df.pivot_table(values='Sales', index='Region', columns='Segment', aggfunc='sum')
+
+# Table 3: Profit Margin by Category & Region
+# IMPORTANT: The task asks for AVERAGE profit margin, not sum
+pivot3 = df.pivot_table(values='Profit Margin', index='Category', columns='Region', aggfunc='mean')
+
+# ---------------------------------------------------------
+# PHASE 3: Export to Excel
+# ---------------------------------------------------------
+
+output_file = 'Pivot_Report.xlsx'
+
+# We use ExcelWriter to put different tables into the file
+with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
+
+    # Write the Raw Data (optional, but good for checking)
+    df.to_excel(writer, sheet_name='Raw Data', index=False)
+
+    # Write Pivot 1
+    pivot1.to_excel(writer, sheet_name='Sales by Category', index=False)
+
+    # Write Pivot 2
+    pivot2.to_excel(writer, sheet_name='Regional Performance')
+
+    # Write Pivot 3
+    pivot3.to_excel(writer, sheet_name='Profit Margins')
+
+    # Access the workbook and worksheet to add formatting (Percent, Currency)
+    workbook = writer.book
+    worksheet3 = writer.sheets['Profit Margins']
+
+    # Format Pivot 3 as Percentage
+    percent_fmt = workbook.add_format({'num_format': '0.00%'}) # Removed the extra ')'
+    worksheet3.set_column('B:Z', 12, percent_fmt)
+
+print(f"Success! Analysis complete. File saved as '{output_file}'.")
+print("\n--- INSIGHTS DATA GENERATED ---")
+print("Top Category:", pivot1.iloc[0]['Category'])
+print("\nTop Performing Region (Total Sales):\n", pivot2.sum(axis=1).sort_values(ascending=False).head(1))

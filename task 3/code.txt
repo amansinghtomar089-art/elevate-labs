@@ -1,0 +1,121 @@
+import pandas as pd
+import sqlite3
+import os
+
+# --- Configuration ---
+CSV_FILE = 'retail_sales_dataset.csv'
+DB_NAME = 'retail_sales.db'
+SQL_OUTPUT_FILE = 'queries_task3.sql'
+CSV_OUTPUT_FILE = 'sales_summary.csv'
+
+def solve_task_3():
+    print(f"Loading dataset: {CSV_FILE}...")
+    
+    # 1. Load CSV and Clean Columns
+    try:
+        df = pd.read_csv(CSV_FILE)
+    except FileNotFoundError:
+        print(f"Error: {CSV_FILE} not found. Please ensure the file is in the same directory.")
+        return
+
+    # Clean column names for SQL (replace spaces with underscores, e.g., 'Product Category' -> 'Product_Category')
+    df.columns = [c.strip().replace(' ', '_') for c in df.columns]
+    print(f"Columns detected: {list(df.columns)}")
+
+    # 2. Setup SQLite Database (In-Memory or File)
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Import data into SQL table 'retail_sales'
+    df.to_sql('retail_sales', conn, if_exists='replace', index=False)
+    print("Dataset imported into SQL table 'retail_sales'.")
+
+    # --- SQL Queries as per Task 3 Instructions ---
+    
+    queries = [
+        {
+            "description": "-- 1. Data Verification: View first 10 records",
+            "sql": "SELECT * FROM retail_sales LIMIT 10;"
+        },
+        {
+            "description": "-- 2. Filtering & Sorting: High value transactions in 'Electronics' (Example Category)",
+            "sql": "SELECT * FROM retail_sales WHERE Product_Category = 'Electronics' ORDER BY Total_Amount DESC LIMIT 10;"
+        },
+        {
+            "description": "-- 3. Aggregation: Total Sales and Average Transaction Value by Category",
+            "sql": """
+            SELECT 
+                Product_Category, 
+                SUM(Total_Amount) as Total_Sales, 
+                AVG(Total_Amount) as Avg_Transaction_Value,
+                COUNT(*) as Transaction_Count
+            FROM retail_sales 
+            GROUP BY Product_Category;
+            """
+        },
+        {
+            "description": "-- 4. HAVING Clause: Categories with Total Sales > 1000 (Example Threshold)",
+            "sql": """
+            SELECT 
+                Product_Category, 
+                SUM(Total_Amount) as Total_Sales 
+            FROM retail_sales 
+            GROUP BY Product_Category 
+            HAVING SUM(Total_Amount) > 1000;
+            """
+        },
+        {
+            "description": "-- 5. Interview Question: Top 5 Customers by Total Spend",
+            "sql": """
+            SELECT 
+                Customer_ID, 
+                SUM(Total_Amount) as Total_Spend 
+            FROM retail_sales 
+            GROUP BY Customer_ID 
+            ORDER BY Total_Spend DESC 
+            LIMIT 5;
+            """
+        }
+    ]
+
+    # --- Execution & Export ---
+
+    # Open the SQL file to write queries into
+    with open(SQL_OUTPUT_FILE, 'w') as sql_file:
+        print(f"\nExecuting queries and saving to {SQL_OUTPUT_FILE}...")
+        
+        for q in queries:
+            desc = q['description']
+            query = q['sql'].strip()
+            
+            # Write to .sql file
+            sql_file.write(f"{desc}\n{query}\n\n")
+            
+            # Execute in Python
+            print(f"\n--- Running: {desc} ---")
+            try:
+                result = pd.read_sql_query(query, conn)
+                print(result)
+                
+                # If this is the aggregation report, save it as the required CSV deliverable
+                if "Aggregation" in desc:
+                    result.to_csv(CSV_OUTPUT_FILE, index=False)
+                    print(f"\n>>> Saved aggregation report to {CSV_OUTPUT_FILE}")
+                    
+            except Exception as e:
+                print(f"Error executing query: {e}")
+
+    conn.close()
+    
+    # Remove the temporary database file if you only wanted the scripts/csv
+    if os.path.exists(DB_NAME):
+        os.remove(DB_NAME)
+
+    print("\n" + "="*50)
+    print("TASK 3 COMPLETED")
+    print(f"1. SQL Script generated: {SQL_OUTPUT_FILE}")
+    print(f"2. Summary CSV generated: {CSV_OUTPUT_FILE}")
+    print("="*50)
+
+if __name__ == "__main__":
+    solve_task_3()

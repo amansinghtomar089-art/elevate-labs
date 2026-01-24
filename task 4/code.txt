@@ -1,0 +1,129 @@
+import sqlite3
+import pandas as pd
+
+def main():
+    # --- Configuration ---
+    # Update this path if your database file is in a different location
+    db_path = 'Chinook_Sqlite.sqlite' 
+    
+    # Connect to the database
+    try:
+        conn = sqlite3.connect(db_path)
+        print(f"Successfully connected to {db_path}")
+    except sqlite3.Error as e:
+        print(f"Error connecting to database: {e}")
+        return
+
+    # --- SQL Queries (Task Requirements) ---
+    
+    # 1. INNER JOIN: Combine Orders (Invoices) with Customer details
+    # This validates which customers have placed orders.
+    query_inner_join = """
+    -- Query 1: INNER JOIN to combine Invoices with Customer details
+    SELECT 
+        c.CustomerId,
+        c.FirstName,
+        c.LastName,
+        c.Country,
+        i.InvoiceId,
+        i.InvoiceDate,
+        i.Total
+    FROM Customer c
+    INNER JOIN Invoice i ON c.CustomerId = i.CustomerId;
+    """
+
+    # 2. LEFT JOIN: Find Customers who never placed any orders
+    # Useful for marketing re-engagement.
+    query_left_join_no_orders = """
+    -- Query 2: LEFT JOIN to find customers with NO orders
+    SELECT 
+        c.CustomerId,
+        c.FirstName,
+        c.LastName,
+        c.Email
+    FROM Customer c
+    LEFT JOIN Invoice i ON c.CustomerId = i.CustomerId
+    WHERE i.InvoiceId IS NULL;
+    """
+
+    # 3. Product Performance: Revenue per Product (Track)
+    # Joins Track -> InvoiceLine
+    query_product_revenue = """
+    -- Query 3: Revenue per Product (Track)
+    SELECT 
+        t.Name AS TrackName,
+        SUM(il.UnitPrice * il.Quantity) AS TotalRevenue
+    FROM Track t
+    JOIN InvoiceLine il ON t.TrackId = il.TrackId
+    GROUP BY t.TrackId
+    ORDER BY TotalRevenue DESC;
+    """
+
+    # 4. Category Performance: Revenue per Category (Genre)
+    # Joins Genre -> Track -> InvoiceLine
+    query_genre_revenue = """
+    -- Query 4: Revenue per Category (Genre)
+    SELECT 
+        g.Name AS GenreName,
+        SUM(il.UnitPrice * il.Quantity) AS TotalRevenue
+    FROM Genre g
+    JOIN Track t ON g.GenreId = t.GenreId
+    JOIN InvoiceLine il ON t.TrackId = il.TrackId
+    GROUP BY g.GenreId
+    ORDER BY TotalRevenue DESC;
+    """
+
+    # --- Execution & Deliverable Generation ---
+
+    # Deliverable 1: joins_queries.sql
+    # Writing the raw SQL queries to a file with comments
+    print("Generating 'joins_queries.sql'...")
+    with open('joins_queries.sql', 'w') as f:
+        f.write("/* Task 4: SQL Intermediate - Joins */\n\n")
+        f.write(query_inner_join + "\n\n")
+        f.write(query_left_join_no_orders + "\n\n")
+        f.write(query_product_revenue + "\n\n")
+        f.write(query_genre_revenue + "\n")
+
+    # Deliverable 2: joined_output.csv
+    # Exporting the main Inner Join dataset (Orders + Customers)
+    print("Generating 'joined_output.csv'...")
+    df_joined = pd.read_sql_query(query_inner_join, conn)
+    df_joined.to_csv('joined_output.csv', index=False)
+
+    # Deliverable 3: insights.txt
+    # Calculating insights using pandas on the results of our analytical queries
+    print("Generating 'insights.txt'...")
+    
+    # Get data for insights
+    df_products = pd.read_sql_query(query_product_revenue, conn)
+    df_genres = pd.read_sql_query(query_genre_revenue, conn)
+    
+    top_track = df_products.iloc[0]
+    top_genre = df_genres.iloc[0]
+    top_3_genres_revenue = df_genres.head(3)['TotalRevenue'].sum()
+    total_revenue = df_genres['TotalRevenue'].sum()
+    top_3_share = (top_3_genres_revenue / total_revenue) * 100
+
+    insights_text = (
+        "--- Business Insights ---\n\n"
+        f"1. Top Performing Genre: '{top_genre['GenreName']}' is the highest revenue-generating category, "
+        f"bringing in ${top_genre['TotalRevenue']:.2f}.\n\n"
+        f"2. Best Selling Track: The track '{top_track['TrackName']}' has generated the most individual sales revenue "
+        f"(${top_track['TotalRevenue']:.2f}).\n\n"
+        f"3. Market Concentration: The top 3 music genres account for {top_3_share:.1f}% of the total sales revenue, "
+        "indicating a highly concentrated customer preference."
+    )
+
+    with open('insights.txt', 'w') as f:
+        f.write(insights_text)
+
+    # Clean up
+    conn.close()
+    print("\nTask complete! Files generated:")
+    print("1. joins_queries.sql")
+    print("2. joined_output.csv")
+    print("3. insights.txt")
+
+if __name__ == "__main__":
+    main()

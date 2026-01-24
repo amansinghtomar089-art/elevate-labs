@@ -1,0 +1,104 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages # Library to save plots to PDF
+
+# ==========================================
+# 1. SETUP & DATA LOADING
+# ==========================================
+file_name = '/content/retail_sales_dataset.csv' # REPLACE with your actual filename
+
+try:
+    df = pd.read_csv(file_name, encoding='windows-1252')
+    print("✅ Data Loaded Successfully")
+
+    # Clean column names (strip whitespace)
+    df.columns = df.columns.str.strip()
+
+    # Rename columns to match the expected names in the plotting section
+    # Based on df.columns from kernel state and expected by code
+    df = df.rename(columns={
+        'Product Category': 'Category',
+        'Date': 'Order Date',
+        'Total Amount': 'Sales' # Corrected from 'Total Sales' to 'Total Amount'
+    })
+
+
+except:
+    # Fallback if file isn't uploaded
+    print(f"❌ Error: File '{file_name}' not found. Please upload it first.")
+    # Create dummy data so the code still runs for demonstration
+    data = {
+        'Category': ['Tech', 'Furniture', 'Office', 'Tech', 'Furniture'],
+        'Sales': [500, 200, 150, 600, 300],
+        'Profit': [50, 20, 15, 60, 30],
+        'Order Date': ['2023-01-01', '2023-01-02', '2023-02-01', '2023-02-15', '2023-03-01'],
+        'Quantity': [2, 1, 5, 3, 2]
+    }
+    df = pd.DataFrame(data)
+
+# Ensure Date format
+if 'Order Date' in df.columns:
+    df['Order Date'] = pd.to_datetime(df['Order Date'])
+
+# ==========================================
+# 2. INITIALIZE PDF DELIVERABLE
+# ==========================================
+# This object will store all our charts
+pdf_filename = "charts_output.pdf"
+pdf = PdfPages(pdf_filename)
+
+# ==========================================
+# 3. GENERATE & SAVE CHARTS
+# ==========================================
+
+# --- Chart 1: Bar Chart ---
+plt.figure(figsize=(10, 6))
+cat_sales = df.groupby('Category')['Sales'].sum()
+plt.bar(cat_sales.index, cat_sales.values, color='skyblue', edgecolor='black')
+plt.title('Total Sales by Category')
+plt.ylabel('Sales')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+# Save to PDF
+pdf.savefig()
+plt.show()
+plt.close()
+
+# --- Chart 2: Line Chart ---
+if 'Order Date' in df.columns:
+    plt.figure(figsize=(10, 6))
+    df['Month'] = df['Order Date'].dt.to_period('M')
+    monthly_sales = df.groupby('Month')['Sales'].sum()
+    monthly_sales.plot(kind='line', marker='o', color='green')
+    plt.title('Monthly Sales Trend')
+    plt.ylabel('Sales')
+    plt.grid(True)
+    # Save to PDF
+    pdf.savefig()
+    plt.show()
+    plt.close()
+
+# --- Chart 3: Histogram ---
+if 'Quantity' in df.columns:
+    plt.figure(figsize=(10, 6))
+    plt.hist(df['Quantity'], bins=10, color='orange', edgecolor='black')
+    plt.title('Distribution of Order Quantity')
+    plt.xlabel('Quantity')
+    plt.ylabel('Frequency')
+    # Save to PDF
+    pdf.savefig()
+    plt.show()
+    plt.close()
+
+# --- Chart 4: Scatter Plot ---
+if 'Profit' in df.columns:
+    plt.figure(figsize=(10, 6))
+    plt.scatter(df['Sales'], df['Profit'], alpha=0.5, color='purple')
+    plt.title('Sales vs Profit Correlation')
+    plt.xlabel('Sales')
+    plt.ylabel('Profit')
+    plt.axhline(0, color='black', linewidth=1)
+    plt.grid(True)
+    # Save to PDF
+    pdf.savefig()
+    plt.show()
+    plt.close()

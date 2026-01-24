@@ -1,0 +1,7 @@
+--- Business Insights ---
+
+1. Top Performing Genre: 'Rock' is the highest revenue-generating category, bringing in $826.65.
+
+2. Best Selling Track: The track 'The Woman King' has generated the most individual sales revenue ($3.98).
+
+3. Market Concentration: The top 3 music genres account for 63.1% of the total sales revenue, indicating a highly concentrated customer preference.

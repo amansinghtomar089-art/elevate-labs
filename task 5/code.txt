@@ -1,0 +1,52 @@
+# Task 5: Python Basics – Reading Data & Cleaning using Pandas
+
+import pandas as pd
+import numpy as np
+
+# 1️⃣ Load dataset (example: Titanic dataset)
+# df = pd.read_csv("titanic.csv")
+
+# For demo purpose, creating a sample dataset
+data = {
+    "PassengerId": range(1, 501),
+    "Age": np.random.choice([np.nan, *range(1, 80)], 500),
+    "Fare": np.random.uniform(10, 500, 500),
+    "Sex": np.random.choice(["male", "female"], 500),
+    "Survived": np.random.choice([0, 1], 500)
+}
+
+df = pd.DataFrame(data)
+
+# 2️⃣ Understand dataset
+df.head()
+df.info()
+
+# 3️⃣ Identify missing values
+df.isnull().sum()
+
+# 4️⃣ Handle missing values
+# Fill missing Age values with median
+df["Age"] = df["Age"].fillna(df["Age"].median())
+
+# 5️⃣ Remove duplicates
+before = df.shape[0]
+df = df.drop_duplicates()
+after = df.shape[0]
+
+print("Rows before:", before)
+print("Rows after:", after)
+
+# 6️⃣ Datatype conversion (example)
+df["Survived"] = df["Survived"].astype(int)
+
+# 7️⃣ Feature engineering
+df["Fare_Category"] = pd.cut(
+    df["Fare"],
+    bins=[0, 100, 300, 600],
+    labels=["Low", "Medium", "High"]
+)
+
+# 8️⃣ Save cleaned dataset
+df.to_csv("cleaned_data.csv", index=False)
+
+print("Cleaned dataset saved successfully!")

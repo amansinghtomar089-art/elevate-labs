@@ -1,0 +1,3 @@
+1. Technology category contributes the highest share of total sales.
+2. West region outperforms other regions in revenue.
+3. Profit shows a steady upward trend over time with seasonal variation.

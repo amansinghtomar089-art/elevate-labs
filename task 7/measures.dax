@@ -1,0 +1,18 @@
+-- ===============================
+-- Task 7: Power BI Measures (DAX)
+-- ===============================
+
+Total Sales =
+SUM ( Sales[Sales] )
+
+Total Profit =
+SUM ( Sales[Profit] )
+
+Profit Margin =
+DIVIDE ( [Total Profit], [Total Sales] )
+
+Top Category =
+CALCULATE (
+    FIRSTNONBLANK ( Sales[Category], 1 ),
+    TOPN ( 1, VALUES ( Sales[Category] ), [Total Sales] )
+)

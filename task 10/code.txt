@@ -1,0 +1,121 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# ==========================================
+# CONFIGURATION
+# ==========================================
+# REPLACE THIS with your actual file name
+dataset_filename = 'StudentsPerformance.csv'  # e.g., 'HousePrices.csv'
+
+# ==========================================
+# [cite_start]1. Load Dataset [cite: 13]
+# ==========================================
+try:
+    df = pd.read_csv(dataset_filename)
+    print(f"Successfully loaded '{dataset_filename}'")
+except FileNotFoundError:
+    print(f"ERROR: Could not find '{dataset_filename}'. Make sure you uploaded it and the name matches exactly.")
+    exit()
+
+print(f"Shape: {df.shape}")
+print("\n--- First 5 Rows ---")
+display(df.head()) # 'display' works nicely in Colab, use print() for standard Python
+
+print("\n--- Data Info ---")
+print(df.info())
+
+# ==========================================
+# [cite_start]2. Descriptive Statistics [cite: 14]
+# ==========================================
+print("\n--- Descriptive Statistics ---")
+print(df.describe())
+
+# ==========================================
+# [cite_start]3. Missing Values [cite: 15]
+# ==========================================
+print("\n--- Missing Value % ---")
+missing_percent = df.isnull().mean() * 100
+print(missing_percent[missing_percent > 0]) # Only showing columns with missing values
+
+# ==========================================
+# AUTOMATION: Identify Numeric Columns for Analysis
+# ==========================================
+# We automatically pick the first available numeric column to demonstrate Outlier detection
+numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+
+if not numeric_cols:
+    print("Error: No numeric columns found for outlier detection.")
+else:
+    target_col = numeric_cols[0] # Defaults to the first numeric column found
+    print(f"\nNOTE: Automatically selected '{target_col}' for detailed Outlier Analysis.")
+
+    # ==========================================
+    # [cite_start]4. Plot Distributions [cite: 16]
+    # ==========================================
+    plt.figure(figsize=(14, 5))
+
+    # Histogram
+    plt.subplot(1, 2, 1)
+    sns.histplot(df[target_col], kde=True, color='blue')
+    plt.title(f'Distribution of {target_col}')
+
+    # Boxplot
+    plt.subplot(1, 2, 2)
+    sns.boxplot(x=df[target_col], color='orange')
+    plt.title(f'Boxplot of {target_col}')
+    
+    plt.show()
+
+    # ==========================================
+    # [cite_start]5. Detect Outliers (IQR Method) [cite: 17]
+    # ==========================================
+    Q1 = df[target_col].quantile(0.25)
+    Q3 = df[target_col].quantile(0.75)
+    IQR = Q3 - Q1
+    
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    
+    print(f"\n--- Outlier Detection for {target_col} ---")
+    print(f"IQR: {IQR:.2f} | Lower Bound: {lower_bound:.2f} | Upper Bound: {upper_bound:.2f}")
+
+    # ==========================================
+    # [cite_start]6. Create Outlier Flag Column [cite: 18]
+    # ==========================================
+    outlier_col_name = f'is_outlier_{target_col}'
+    df[outlier_col_name] = np.where(
+        (df[target_col] < lower_bound) | (df[target_col] > upper_bound), 
+        True, 
+        False
+    )
+    
+    outlier_count = df[outlier_col_name].sum()
+    print(f"Outliers detected: {outlier_count}")
+
+    # ==========================================
+    # [cite_start]7. Handle Outliers (Capping Method) [cite: 19]
+    # ==========================================
+    # We cap outliers to the upper/lower bounds so we don't lose data
+    df[f'{target_col}_Cleaned'] = np.where(df[target_col] > upper_bound, upper_bound,
+                                    np.where(df[target_col] < lower_bound, lower_bound, df[target_col]))
+    
+    print(f"Outliers handled using Capping (Winsorization).")
+
+    # ==========================================
+    # [cite_start]8. Correlation Matrix [cite: 20]
+    # ==========================================
+    # We use numeric columns only
+    plt.figure(figsize=(10, 8))
+    corr_matrix = df[numeric_cols].corr()
+    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+    plt.title('Correlation Matrix')
+    plt.show()
+
+# ==========================================
+# [cite_start]9. Export Cleaned Dataset [cite: 21]
+# ==========================================
+output_filename = 'cleaned_dataset.csv'
+df.to_csv(output_filename, index=False)
+print(f"\nSuccess! Cleaned data exported to '{output_filename}'")

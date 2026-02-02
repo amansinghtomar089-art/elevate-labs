@@ -1,0 +1,7 @@
+--- A/B Test Findings ---
+Dataset: /content/marketing_AB.csv
+P-Value: 0.000000
+Significance Level: 0.05
+Result: REJECT Null Hypothesis (H0). 
+The difference is Statistically Significant.
+Business Recommendation: The test group performed significantly different. If conversion is higher, implement the Ad campaign.

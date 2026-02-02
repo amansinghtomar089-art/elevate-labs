@@ -1,0 +1,146 @@
+import pandas as pd
+import numpy as np
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+
+# ==========================================
+# CONFIGURATION (Edit this if your columns differ)
+# ==========================================
+DATASET_FILENAME = 'marketing_AB.csv'
+
+# Map your CSV column names here:
+COL_GROUP = 'test group'   # Column distinguishing Control vs Test
+COL_CONVERTED = 'converted' # Column showing result (True/False or 1/0)
+COL_USER_ID = 'user id'    # Unique ID column
+
+# Define which value in 'COL_GROUP' represents the Control and Test groups
+# In the standard dataset: 'psa' is usually Control, 'ad' is Test
+VAL_CONTROL = 'psa' 
+VAL_TEST = 'ad'
+
+ALPHA = 0.05  # Significance level (95% confidence)
+
+# ==========================================
+# 1. Load & Inspect Data
+# ==========================================
+if not os.path.exists(DATASET_FILENAME):
+    print(f"ERROR: '{DATASET_FILENAME}' not found. Please download the dataset and place it in this folder.")
+    exit()
+
+df = pd.read_csv(DATASET_FILENAME)
+print(f"--- Data Loaded: {df.shape} ---")
+print(df.head())
+
+# Basic Cleanup: Remove duplicates if any
+df = df.drop_duplicates(subset=COL_USER_ID)
+
+# ==========================================
+# 2. Define Hypothesis
+# ==========================================
+print("\n--- 2. Hypothesis Definition ---")
+print("Null Hypothesis (H0): There is NO difference in conversion rates between the Ad group and the PSA (Control) group.")
+print("Alternative Hypothesis (H1): There IS a significant difference in conversion rates between the groups.")
+print(f"Significance Level (Alpha): {ALPHA}")
+
+# ==========================================
+# 3. Calculate Group Metrics
+# ==========================================
+print("\n--- 3. Group Statistics ---")
+
+# Group by test group and calculate size and conversion sum
+summary = df.groupby(COL_GROUP)[COL_CONVERTED].agg(['count', 'sum', 'mean']).reset_index()
+summary.columns = ['Group', 'Total_Users', 'Converted_Users', 'Conversion_Rate']
+
+# formatting for readability
+summary['Conversion_Rate_Percent'] = (summary['Conversion_Rate'] * 100).round(2)
+print(summary)
+
+# Extract specific counts for the test
+try:
+    control_data = df[df[COL_GROUP] == VAL_CONTROL]
+    test_data = df[df[COL_GROUP] == VAL_TEST]
+    
+    control_converted = control_data[COL_CONVERTED].sum()
+    control_total = control_data[COL_CONVERTED].count()
+    
+    test_converted = test_data[COL_CONVERTED].sum()
+    test_total = test_data[COL_CONVERTED].count()
+    
+    print(f"\nControl ({VAL_CONTROL}): {control_converted}/{control_total} converted")
+    print(f"Test ({VAL_TEST}): {test_converted}/{test_total} converted")
+
+except KeyError:
+    print(f"\nERROR: Could not find groups '{VAL_CONTROL}' or '{VAL_TEST}' in column '{COL_GROUP}'. Check your configuration.")
+    exit()
+
+# ==========================================
+# 4 & 5. Statistical Test (Chi-Square)
+# ==========================================
+# We use Chi-Square because 'Conversion' is a categorical variable (Yes/No), not a continuous mean.
+# Contingency Table: [[Control_Conv, Control_NonConv], [Test_Conv, Test_NonConv]]
+
+print("\n--- 4. Running Statistical Test (Chi-Square) ---")
+
+control_not_converted = control_total - control_converted
+test_not_converted = test_total - test_converted
+
+contingency_table = np.array([
+    [control_converted, control_not_converted],
+    [test_converted, test_not_converted]
+])
+
+chi2, p_value, dof, expected = stats.chi2_contingency(contingency_table)
+
+print(f"Chi-Square Statistic: {chi2:.4f}")
+print(f"P-Value: {p_value:.6f}")
+
+# ==========================================
+# 6. Interpret Results
+# ==========================================
+print("\n--- 5. Interpretation ---")
+result_msg = ""
+if p_value < ALPHA:
+    result_msg = "REJECT Null Hypothesis (H0). \nThe difference is Statistically Significant."
+    recommendation = "Business Recommendation: The test group performed significantly different. If conversion is higher, implement the Ad campaign."
+else:
+    result_msg = "FAIL TO REJECT Null Hypothesis (H0). \nNo significant difference detected."
+    recommendation = "Business Recommendation: The Ad did not lead to a statistically significant change compared to the PSA."
+
+print(result_msg)
+print(recommendation)
+
+# ==========================================
+# 7. Visualization
+# ==========================================
+plt.figure(figsize=(8, 5))
+sns.barplot(x='Group', y='Conversion_Rate', data=summary, palette='viridis')
+plt.title('Conversion Rate by Group')
+plt.ylabel('Conversion Rate')
+plt.xlabel('Test Group')
+plt.ylim(0, summary['Conversion_Rate'].max() * 1.2) # Add some headroom
+for index, row in summary.iterrows():
+    plt.text(index, row['Conversion_Rate'], f"{row['Conversion_Rate_Percent']}%", color='black', ha="center", va="bottom")
+plt.tight_layout()
+plt.savefig('ab_test_result.png')
+print("\nVisualization saved as 'ab_test_result.png'")
+
+# ==========================================
+# 8. Deliverables Export
+# ==========================================
+# 1. Save Summary Data
+summary.to_csv('ab_test_summary.csv', index=False)
+print("Summary data saved to 'ab_test_summary.csv'")
+
+# 2. Save Final Recommendation Text
+with open("final_recommendation.txt", "w") as f:
+    f.write("--- A/B Test Findings ---\n")
+    f.write(f"Dataset: {DATASET_FILENAME}\n")
+    f.write(f"P-Value: {p_value:.6f}\n")
+    f.write(f"Significance Level: {ALPHA}\n")
+    f.write(f"Result: {result_msg}\n")
+    f.write(f"{recommendation}\n")
+print("Recommendation saved to 'final_recommendation.txt'")
+
+print("\nTask 11 Complete.")
